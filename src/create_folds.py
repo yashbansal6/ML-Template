@@ -16,5 +16,5 @@ if __name__ == "__main__":
         print(len(train_idx), len(val_idx))
         df.loc[val_idx, 'kfold'] = fold
     
-    #df.to_csv("input/train_folds.csv", index=False)
+    df.to_csv("input/train_folds.csv", index=False)
     
