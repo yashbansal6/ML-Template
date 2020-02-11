@@ -15,17 +15,20 @@ class CategoricalFeatures:
         handle_na = True / False
         """
         self.df = df
-        self.output_df = self.df.copy(True)
         self.cat_feats = categorical_features
         self.enc_type = encoding_type
         self.handle_na = handle_na
         self.label_encoders = dict()
         self.binary_encoders = dict()
+        self.ohe = None
         
         if self.handle_na:
             for c in self.cat_feats:
                 self.df.loc[:,c] = self.df.loc[:,c].astype(str).fillna("-999999")
                 #This imaginary value should not be present in dataset
+        
+        #make copy after handling NaN
+        self.output_df = self.df.copy(True)
         
     def _label_encoding(self):
         for c in self.cat_feats:
@@ -47,12 +50,19 @@ class CategoricalFeatures:
                 self.output_df[new_col_name] = val[:,j]
             self.binary_encoders[c] = lbl
         return self.output_df    
+    
+    def _one_hot(self):
+        ohe = preprocessing.OneHotEncoder()
+        ohe.fit(self.df[self.cat_feats].values)
+        return ohe.transform(self.df[self.cat_feats].values)
             
     def fit_transform(self):
         if self.enc_type == "label":
             return self._label_encoding()
         elif self.enc_type == "binary":
             return self._label_binarization()
+        elif self.enc_type == "ohe":
+            return self._one_hot()
         else:
             raise Exception("Encoding Type not understood")
     
@@ -112,6 +122,7 @@ if __name__ == "__main__":
     test_transformed = cat_feats.transform(df_test)
     print(test_transformed)
     '''
+    '''
     #to solve the issue of previous unseen labels, combine train and test dataset
     
     df = pd.read_csv("../input/cat-in-the-dat-ii/train.csv")
@@ -130,6 +141,27 @@ if __name__ == "__main__":
     
     train_df = full_data_transformed[full_data_transformed["id"].isin(train_idx)].reset_index(drop=True)
     test_df = full_data_transformed[full_data_transformed["id"].isin(test_idx)].reset_index(drop=True)
+    
+    print(train_df.shape)
+    print(test_df.shape)
+    '''
+    #one hot encoder - requires concatenation - requires to remove NaN
+    
+    df = pd.read_csv("../input/cat-in-the-dat-ii/train.csv")
+    df_test = pd.read_csv("../input/cat-in-the-dat-ii/test.csv")
+    
+    train_len = len(df)
+    
+    df_test["target"] = -1 
+    full_data = pd.concat([df, df_test])
+    
+    cols = [c for c in df.columns if c not in ["id", "target"]]
+    print(cols)
+    cat_feats = CategoricalFeatures(full_data, categorical_features=cols, encoding_type="ohe", handle_na=True)
+    full_data_transformed = cat_feats.fit_transform()
+    
+    train_df = full_data_transformed[:train_len, :]
+    test_df = full_data_transformed[train_len:, :]
     
     print(train_df.shape)
     print(test_df.shape)
