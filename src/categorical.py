@@ -83,6 +83,10 @@ class CategoricalFeatures:
                     new_col_name = c + f"__bin_{j}"
                     dataframe[new_col_name] = val[:,j]
             return dataframe
+        elif self.enc_type == "ohe":
+            return self.ohe(dataframe[self.cat_feats].values)
+        else:
+            raise Exception("Encoding Type not understood")
         
 if __name__ == "__main__":
     import pandas as pd
@@ -145,6 +149,7 @@ if __name__ == "__main__":
     print(train_df.shape)
     print(test_df.shape)
     '''
+    '''
     #one hot encoder - requires concatenation - requires to remove NaN
     
     df = pd.read_csv("../input/cat-in-the-dat-ii/train.csv")
@@ -165,3 +170,34 @@ if __name__ == "__main__":
     
     print(train_df.shape)
     print(test_df.shape)
+    '''
+    #sample submission with no tuning, no CV
+    
+    from sklearn import linear_model
+    
+    df = pd.read_csv("../input/cat-in-the-dat-ii/train.csv")
+    df_test = pd.read_csv("../input/cat-in-the-dat-ii/test.csv")
+    
+    # if need shuffling do it here
+    
+    sample = pd.read_csv("../input/cat-in-the-dat-ii/sample_submission.csv")
+    
+    train_len = len(df)
+    
+    df_test["target"] = -1 
+    full_data = pd.concat([df, df_test])
+    
+    cols = [c for c in df.columns if c not in ["id", "target"]]
+
+    cat_feats = CategoricalFeatures(full_data, categorical_features=cols, encoding_type="ohe", handle_na=True)
+    full_data_transformed = cat_feats.fit_transform()
+    
+    X = full_data_transformed[:train_len, :]
+    X_test = full_data_transformed[train_len:, :]
+    
+    clf = linear_model.LogisticRegression()
+    clf.fit(X, df.target.values)
+    preds = clf.predict_proba(X_test)[:, 1]
+    
+    sample.loc[:, "target"] = preds
+    sample.to_csv("submission.csv", index=False)
